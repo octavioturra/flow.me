@@ -21,7 +21,7 @@
       '</div>'+
     '</div>'+
     '<div class="dataflow-graph-controls">'+
-      '<button class="dataflow-graph-gotoparent"><i class="icon-chevron-left"></i> back to parent</button>'+
+      '<button class="dataflow-graph-gotoparent"><i class="fa fa-chevron-left"></i> back to parent</button>'+
     '</div>';
 
   Graph.View = Backbone.View.extend({

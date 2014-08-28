@@ -1,4 +1,4 @@
-/*! flow.me - v0.0.8 - 2014-08-28 (6:54:40 PM GMT-0300)
+/*! flow.me - v0.0.8 - 2014-08-28 (7:16:22 PM GMT-0300)
 * Copyright (c) 2014 Forrest Oliphant; Licensed MIT, GPL */
 // Thanks bobnice http://stackoverflow.com/a/1583281/592125
 
@@ -3444,7 +3444,7 @@ CircularBuffer.IndexError= {};
 
     };
 
-    var itemTemplate = '<li><a class="button add"><i class="icon-<%- icon %>"></i></a><span class="name"><%- name %></span><span class="description"><%-description %></span></li>';
+    var itemTemplate = '<li><a class="button add"><i class="fa fa-<%- icon %>"></i></a><span class="name"><%- name %></span><span class="description"><%-description %></span></li>';
 
     var addLibraryItem = function(name, node) {
       var $item = $(_.template(itemTemplate)({

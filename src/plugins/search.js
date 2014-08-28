@@ -23,7 +23,7 @@
 
   var ResultView = Backbone.View.extend({
     tagName: 'li',
-    template: '<i class="icon-<%- icon %>"></i><span class="name"><%- label %></span><span class="description"><%- description %></span>',
+    template: '<i class="fa fa-<%- icon %>"></i><span class="name"><%- label %></span><span class="description"><%- description %></span>',
     events: {
       'click': 'clicked'
     },
@@ -39,7 +39,7 @@
   });
 
   Search.initialize = function (dataflow) {
-    var $search = $('<div class="dataflow-plugin-search"><input type="search" placeholder="Search" results="5" x-webkit-speech /><button><i class="icon-reorder"></i></button></div>');
+    var $search = $('<div class="dataflow-plugin-search"><input type="search" placeholder="Search" results="5" x-webkit-speech /><button><i class="fa fa-reorder"></i></button></div>');
     var $input = $search.find('input');
     var $button = $search.find('button');
     dataflow.$el.prepend($search);

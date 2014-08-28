@@ -8,7 +8,7 @@
 
   var headerTemplate =
     '<h1 class="dataflow-node-title" title="<%- label %>: <%- type %>">'+
-    '<% if (icon) { %><i class="icon-<%- icon %>"></i> <% } %>'+
+    '<% if (icon) { %><i class="fa fa-<%- icon %>"></i> <% } %>'+
     '<%- label %></h1>';
 
   var template = 
