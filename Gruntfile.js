@@ -100,7 +100,7 @@
           files: {
             'build/default/dataflow.min.css': [
               'themes/default/font-proximanova.css',
-              'themes/default/font-awesome.css',
+              'bower_components/font-awesome/css/font-awesome.css',
               'themes/default/dataflow.css',
               'themes/default/modules/node.css',
               'themes/default/modules/edge.css',

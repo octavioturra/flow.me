@@ -49,7 +49,7 @@
     var itemTemplate = '<li><a class="button add"><i class="icon-<%- icon %>"></i></a><span class="name"><%- name %></span><span class="description"><%-description %></span></li>';
 
     var addLibraryItem = function(name, node) {
-      var $item = $(_.template(itemTemplate, {
+      var $item = $(_.template(itemTemplate)({
         name: name,
         description: node.description,
         icon: node.icon ? node.icon : 'sign-blank'

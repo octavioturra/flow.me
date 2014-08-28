@@ -9,7 +9,7 @@
       'click': 'clicked'
     },
     render: function () {
-      this.$el.html(_.template(this.template, this.model.toJSON()));
+      this.$el.html(_.template(this.template)(this.model.toJSON()));
     },
     clicked: function () {
       if (!this.model.get('action')) {

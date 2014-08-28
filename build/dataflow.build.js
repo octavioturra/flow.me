@@ -1,5 +1,5 @@
-/*! dataflow.js - v0.0.7 - 2013-10-06 (7:24:40 PM GMT+0200)
-* Copyright (c) 2013 Forrest Oliphant; Licensed MIT, GPL */
+/*! flow.me - v0.0.8 - 2014-08-28 (6:47:49 PM GMT-0300)
+* Copyright (c) 2014 Forrest Oliphant; Licensed MIT, GPL */
 // Thanks bobnice http://stackoverflow.com/a/1583281/592125
 
 // Circular buffer storage. Externally-apparent 'length' increases indefinitely
@@ -2904,7 +2904,7 @@ CircularBuffer.IndexError= {};
       'click': 'clicked'
     },
     render: function () {
-      this.$el.html(_.template(this.template, this.model.toJSON()));
+      this.$el.html(_.template(this.template)(this.model.toJSON()));
     },
     clicked: function () {
       if (!this.model.get('action')) {
@@ -3447,7 +3447,7 @@ CircularBuffer.IndexError= {};
     var itemTemplate = '<li><a class="button add"><i class="icon-<%- icon %>"></i></a><span class="name"><%- name %></span><span class="description"><%-description %></span></li>';
 
     var addLibraryItem = function(name, node) {
-      var $item = $(_.template(itemTemplate, {
+      var $item = $(_.template(itemTemplate)({
         name: name,
         description: node.description,
         icon: node.icon ? node.icon : 'sign-blank'
