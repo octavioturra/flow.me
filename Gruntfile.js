@@ -119,7 +119,7 @@
             src: [
                 'bower_components/**/*',
                 '!bower_components/paper-canvas/**/*',
-                'build/*', 'index.html'
+                'build/**/*', 'src/nodes/**/*', 'fonts/*', 'index.html'
             ]
         },
     });
