@@ -1,5 +1,41 @@
-/*! dataflow.js - v0.0.7 - 2013-10-02 (12:25:39 AM GMT+0300)
-* Copyright (c) 2013 Forrest Oliphant; Licensed MIT, GPL */
+/*! flow.me - v0.0.8 - 2014-08-28 (6:54:40 PM GMT-0300)
+* Copyright (c) 2014 Forrest Oliphant; Licensed MIT, GPL */
+// Thanks bobnice http://stackoverflow.com/a/1583281/592125
+
+// Circular buffer storage. Externally-apparent 'length' increases indefinitely
+// while any items with indexes below length-n will be forgotten (undefined
+// will be returned if you try to get them, trying to set is an exception).
+// n represents the initial length of the array, not a maximum
+
+function CircularBuffer(n) {
+  this._array= new Array(n);
+  this.length= 0;
+}
+CircularBuffer.prototype.toString= function() {
+  return '[object CircularBuffer('+this._array.length+') length '+this.length+']';
+};
+CircularBuffer.prototype.get= function(i) {
+  if (i<0 || i<this.length-this._array.length)
+    return undefined;
+  return this._array[i%this._array.length];
+};
+CircularBuffer.prototype.set = function(i, v) {
+  if (i<0 || i<this.length-this._array.length)
+    throw CircularBuffer.IndexError;
+  while (i>this.length) {
+    this._array[this.length%this._array.length] = undefined;
+    this.length++;
+  }
+  this._array[i%this._array.length] = v;
+  if (i==this.length)
+    this.length++;
+};
+CircularBuffer.prototype.push = function(v) {
+  this._array[this.length%this._array.length] = v;
+  this.length++;
+};
+CircularBuffer.IndexError= {};
+
 (function(){
   var App = Backbone.Model.extend({
     "$": function(query) {
@@ -152,7 +188,7 @@
         this.plugins.menu.addPlugin({
           id: info.id,
           icon: info.icon,
-          label: info.name,
+          label: info.label,
           showLabel: false
         });
       }
@@ -518,12 +554,23 @@
       return {
         label: "",
         description: "",
+        icon: "",
         type: "test",
         x: 200,
         y: 100,
         state: {},
         selected: false
       };
+    },
+    getIcon: function () {
+      if (this.get('icon')) {
+        return this.get('icon');
+      }
+      var node = this.parentGraph.dataflow.node(this.get('type'));
+      if (!node || !node.icon) {
+        return '';
+      }
+      return node.icon;
     },
     initialize: function() {
       this.parentGraph = this.get("parentGraph");
@@ -623,6 +670,7 @@
       });
       this.unload();
       this.collection.remove(this);
+      this.trigger('remove');
     },
     unload: function(){
       // Stop any processes that need to be stopped
@@ -673,7 +721,8 @@
       id: "input",
       description: "",
       label: "",
-      type: "all"
+      type: "all",
+      multiple: true
     },
     initialize: function() {
       this.parentNode = this.get("parentNode");
@@ -682,7 +731,18 @@
       }
       this.connected = [];
     },
+    canConnect: function (edge) {
+      if (!this.get('multiple') && this.connected.length) {
+        // This port doesn't allow multiple connections and
+        // there is a connection already, decline
+        return false;
+      }
+      return true;
+    },
     connect: function(edge){
+      if (!this.canConnect(edge)) {
+        return;
+      }
       this.connected.push(edge);
       this.connected = _.uniq(this.connected);
       this.trigger('connected');
@@ -720,7 +780,8 @@
       id: "output",
       label: "",
       type: "all",
-      description: ""
+      description: "",
+      multiple: true
     }
   });
 
@@ -734,18 +795,6 @@
 
   var Edge = Dataflow.prototype.module("edge");
 
-  var EdgeEvent = Backbone.Model.extend({
-    defaults: {
-      "type": "data",
-      "data": "",
-      "group": ""
-    }
-  });
-
-  var EdgeEventLog = Backbone.Collection.extend({
-    model: EdgeEvent
-  });
-
   Edge.Model = Backbone.Model.extend({
     defaults: {
       "z": 0,
@@ -757,7 +806,7 @@
       var nodes, sourceNode, targetNode;
       var preview = this.get("preview");
       this.parentGraph = this.get("parentGraph");
-      this.attributes.log = new EdgeEventLog();
+      this.attributes.log = new CircularBuffer(50);
       if (preview) {
         // Preview edge
         nodes = this.get("parentGraph").nodes;
@@ -843,6 +892,7 @@
       }
       // Remove listener
       this.source.parentNode.off("send:"+this.source.id, this.send, this);
+      this.trigger('remove');
     }
   });
 
@@ -1200,6 +1250,39 @@
           edge.view.unfade();
         }
       });
+    },
+    startHighlightCompatible: function (port, fromInput) {
+      this.model.nodes.each(function (node) {
+        node.outputs.each(function (output) {
+          if (output === port) {
+            return;
+          }
+          if (!fromInput) {
+            output.view.blur();
+            return;
+          }
+          if (output.canConnect() && (port.get('type') == 'all' || output.get('type') === 'all' || output.get('type') === port.get('type'))) {
+            return;
+          }
+          output.view.blur();
+        });
+        node.inputs.each(function (input) {
+          if (input === port) {
+            return;
+          }
+          if (fromInput) {
+            input.view.blur();
+            return;
+          }
+          if (input.canConnect() && (port.get('type') == 'all' || input.get('type') === 'all' || input.get('type') === port.get('type'))) {
+            return;
+          }
+          input.view.blur();
+        });
+      });
+    },
+    stopHighlightCompatible: function (port, fromInput) {
+      this.$el.find('.dataflow-port.blur').removeClass('blur');
     }
   });
 
@@ -1213,10 +1296,15 @@
   var Input = Dataflow.prototype.module("input");
   var Output = Dataflow.prototype.module("output");
 
+  var headerTemplate =
+    '<h1 class="dataflow-node-title" title="<%- label %>: <%- type %>">'+
+    '<% if (icon) { %><i class="icon-<%- icon %>"></i> <% } %>'+
+    '<%- label %></h1>';
+
   var template = 
     '<div class="outer" />'+
     '<div class="dataflow-node-header">'+
-      '<h1 class="dataflow-node-title" title="<%- label %>: <%- type %>"><%- label %></h1>'+
+      headerTemplate +
     '</div>'+
     '<div class="dataflow-node-ports">'+
       '<div class="dataflow-node-ins"></div>'+
@@ -1242,7 +1330,9 @@
       };
     },
     initialize: function(options) {
-      this.$el.html(this.template(this.model.toJSON()));
+      var templateData = this.model.toJSON();
+      templateData.icon = this.model.getIcon();
+      this.$el.html(this.template(templateData));
 
       this.graph = options.graph;
 
@@ -1289,7 +1379,9 @@
       // Selected listener
       this.listenTo(this.model, "change:selected", this.selectedChanged);
 
-      this.listenTo(this.model, "change:label", this.changeLabel);
+      this.listenTo(this.model, "change:label change:icon", this.changeHeader);
+
+      this.listenTo(this.model, "remove", this.hideInspector);
 
       this.$inner = this.$(".dataflow-node-inner");
     },
@@ -1347,12 +1439,11 @@
       }, this);
 
     },
-    changeLabel: function () {
-      var label = this.model.get("label");
-      var type = this.model.get("type");
-      this.$(".dataflow-node-title")
-        .text( label )
-        .attr("title", label + ": " + type);
+    changeHeader: function () {
+      var templateData = this.model.toJSON();
+      templateData.icon = this.model.getIcon();
+      this.$(".dataflow-node-header")
+        .html(_.template(headerTemplate, templateData));
     },
     drag: function(event, ui){
       if (!ui){ return; }
@@ -1427,11 +1518,8 @@
         toggle = true;
         selected = !selected;
         this.model.set("selected", selected);
-        if (selected) {
-          this.showInspector(true);
-        } else {
+        if (!selected) {
           this.fade();
-          this.hideInspector();
         }
       } else {
         // Deselect all
@@ -1440,7 +1528,6 @@
         this.model.parentGraph.view.fade();
         selected = true;
         this.model.set("selected", true);
-        this.showInspector();
       }
       this.bringToTop();
       this.model.parentGraph.view.fadeEdges();
@@ -1474,8 +1561,10 @@
     selectedChanged: function () {
       if (this.model.get("selected")) {
         this.highlight();
+        this.showInspector();
       } else {
         this.unhighlight();
+        this.hideInspector();
       }
     },
     highlight: function () {
@@ -1784,6 +1873,8 @@
       graphSVGElement.appendChild(this.previewEdgeNewView.el);
 
       zoom = this.model.parentNode.parentGraph.get('zoom');
+
+      this.model.parentNode.parentGraph.view.startHighlightCompatible(this.model, true);
     },
     newEdgeDrag: function(event, ui){
       if (!this.previewEdgeNewView || !ui) {
@@ -1811,6 +1902,7 @@
       this.previewEdgeNewView.remove();
       delete this.previewEdgeNew;
       delete this.previewEdgeNewView;
+      this.model.parentNode.parentGraph.view.stopHighlightCompatible(this.model, true);
     },
     getTopEdge: function() {
       var topEdge;
@@ -1888,6 +1980,12 @@
         delete this.previewEdgeChangeView;
       }
     },
+    blur: function () {
+      this.$el.addClass('blur');
+    },
+    unblur: function () {
+      this.$el.removeClass('blur');
+    },
     connectEdge: function(event, ui) {
       // Dropped to this el
       var otherPort = ui.helper.data("port");
@@ -1898,11 +1996,39 @@
         return false;
       }
 
-      var route = 0;
-      if (ui.helper.data("route") !== undefined) {
-        route = ui.helper.data("route");
+      if (!this.model.canConnect()) {
+        // Port declined the connection, abort
+        return;
       }
 
+      function getRouteForType(type) {
+        switch (type) {
+          case 'int':
+          case 'float':
+          case 'number':
+            return 1;
+          case 'boolean':
+            return 2;
+          case 'object':
+            return 3;
+          case 'string':
+          case 'text':
+            return 4;
+          default:
+            return 0;
+        }
+      }
+      function getDefaultRoute(fromType, toType) {
+        if (fromType === 'all' && toType === 'all') {
+          return 0;
+        }
+        if (fromType === 'all') {
+          return getRouteForType(toType);
+        }
+        return getRouteForType(fromType);
+      }
+
+      var route = getDefaultRoute(this.model.get('type'), otherPort.get('type'));
       this.model.parentNode.parentGraph.edges.add({
         id: otherPort.parentNode.id+":"+otherPort.id+"::"+this.model.parentNode.id+":"+this.model.id,
         parentGraph: this.model.parentNode.parentGraph,
@@ -2088,6 +2214,7 @@
 
       zoom = this.model.parentNode.parentGraph.get('zoom');
 
+      this.model.parentNode.parentGraph.view.startHighlightCompatible(this.model);
     },
     newEdgeDrag: function(event, ui){
       // Don't drag node
@@ -2113,6 +2240,7 @@
       this.previewEdgeView.remove();
       delete this.previewEdge;
       delete this.previewEdgeView;
+      this.model.parentNode.parentGraph.view.stopHighlightCompatible(this.model);
     },
     getTopEdge: function() {
       var topEdge;
@@ -2190,6 +2318,12 @@
         delete this.previewEdgeChangeView;
       }
     },
+    blur: function () {
+      this.$el.addClass('blur');
+    },
+    unblur: function () {
+      this.$el.removeClass('blur');
+    },
     connectEdge: function(event, ui) {
       // Dropped to this el
       var otherPort = ui.helper.data("port");
@@ -2200,11 +2334,39 @@
         return false;
       }
 
-      var route = 0;
-      if (ui.helper.data("route") !== undefined) {
-        route = ui.helper.data("route");
+      if (!this.model.canConnect()) {
+        // Port declined the connection, abort
+        return;
       }
 
+      function getRouteForType(type) {
+        switch (type) {
+          case 'int':
+          case 'float':
+          case 'number':
+            return 1;
+          case 'boolean':
+            return 2;
+          case 'object':
+            return 3;
+          case 'string':
+          case 'text':
+            return 4;
+          default:
+            return 0;
+        }
+      }
+      function getDefaultRoute(fromType, toType) {
+        if (fromType === 'all' && toType === 'all') {
+          return 0;
+        }
+        if (fromType === 'all') {
+          return getRouteForType(toType);
+        }
+        return getRouteForType(fromType);
+      }
+
+      var route = getDefaultRoute(this.model.get('type'), otherPort.get('type'));
       this.model.parentNode.parentGraph.edges.add({
         id: this.model.parentNode.id+":"+this.model.id+"::"+otherPort.parentNode.id+":"+otherPort.id,
         parentGraph: this.model.parentNode.parentGraph,
@@ -2384,7 +2546,7 @@
 
       // Listen for select
       this.listenTo(this.model, "change:selected", this.selectedChange);
-
+      this.listenTo(this.model, "remove", this.hideInspector);
     },
     render: function(previewPosition){
       var source = this.model.source;
@@ -2441,8 +2603,10 @@
     selectedChange: function () {
       if (this.model.get("selected")){
         this.highlight();
+        this.showInspector();
       } else {
         this.unhighlight();
+        this.hideInspector();
       }
       this.model.parentGraph.trigger("selectionChanged");
     },
@@ -2537,12 +2701,11 @@
       if (event) {
         event.stopPropagation();
       }
-      var selected, leaveUnpinned;
+      var selected;
       if (event && (event.ctrlKey || event.metaKey)) {
         // Toggle
         selected = this.model.get("selected");
         selected = !selected;
-        leaveUnpinned = true;
       } else {
         // Deselect all and select this
         selected = true;
@@ -2554,9 +2717,6 @@
         this.bringToTop();
         this.model.trigger("select");
         this.unfade();
-        this.showInspector(leaveUnpinned);
-      } else {
-        this.hideInspector();
       }
       // Fade all and highlight related
       this.model.parentGraph.view.fade();
@@ -2739,12 +2899,12 @@
 
   var MenuItemView = Backbone.View.extend({
     tagName: 'li',
-    template: '<button><i class="icon-<%- icon %>"></i><span class="name"><%- label %></span></button>',
+    template: '<button title="<%- label %>"><i class="icon-<%- icon %>"></i><span class="name"><%- label %></span></button>',
     events: {
       'click': 'clicked'
     },
     render: function () {
-      this.$el.html(_.template(this.template, this.model.toJSON()));
+      this.$el.html(_.template(this.template)(this.model.toJSON()));
     },
     clicked: function () {
       if (!this.model.get('action')) {
@@ -2848,14 +3008,11 @@
     '<div class="dataflow-edge-inspector-route-choose"></div>'+
     '<ul class="dataflow-edge-inspector-events"></ul>';
 
-  var logTemplate = '<li class="<%- type %>"><%- group %><%- data %></li>';
-  
   Edge.InspectView = Backbone.View.extend({
     tagName: "div",
     className: "dataflow-edge-inspector",
     positions: null,
     template: _.template(template),
-    showLogs: 20,
     initialize: function() {
       var templateData = this.model.toJSON();
       if (this.model.id) {
@@ -2885,10 +3042,8 @@
 
       this.listenTo(this.model, "change:route", this.render);
       this.listenTo(this.model, "remove", this.remove);
-      this.listenTo(this.model.get('log'), 'add', function () { 
-        this.logDirty = true; 
-      }.bind(this));
-      this.renderLog();
+      // Check if need to render logs
+      this.animate();
     },
     render: function(){
       var route = this.model.get("route");
@@ -2897,38 +3052,37 @@
       $choose.children(".route"+route).addClass("active");
       return this;
     },
-    logDirty: false,
+    showLogs: 20,
+    lastLog: 0,
     animate: function (timestamp) {
       // Called from dataflow.shownCards collection (card-view.js)
-      if (this.logDirty) {
-        this.logDirty = false;
-        this.renderLog();
-      }
-    },
-    renderLog: function () {
-      var frag = document.createDocumentFragment();
       var logs = this.model.get('log');
-      var logsToShow;
-      if (logs.length > this.showLogs) {
-        logsToShow = logs.rest(logs.length - this.showLogs);
-      } else {
-        logsToShow = logs.toArray();
+      if (logs.length > this.lastLog) {
+        this.renderLogs(logs);
+        this.lastLog = logs.length;
       }
-      //JANK warning, already taking 14ms with 20 log items
-      _.each(logsToShow, function (item) {
-        this.renderLogItem(item, frag);
-      }, this);
-      this.$log.html(frag);
-      this.$log[0].scrollTop = this.$log[0].scrollHeight;
     },
-    renderLogItem: function (item, fragment) {
-      var html = $(_.template(logTemplate, item.toJSON()));
-      if (fragment && fragment.appendChild) {
-        fragment.appendChild(html[0]);
-      } else {
-        this.$log.append(html);
-        this.$log[0].scrollTop = this.$log[0].scrollHeight;
+    renderLogs: function (logs) {
+      // Add new logs
+      var firstToShow = this.lastLog;
+      if (logs.length - this.lastLog > this.showLogs) {
+        firstToShow = logs.length - this.showLogs;
       }
+      for (var i=firstToShow; i<logs.length; i++){
+        var item = logs.get(i);
+        if (item) {
+          var li = $("<li>")
+            .addClass(item.type)
+            .text( (item.group ? item.group + " " : "")+item.data);
+          this.$log.append(li);
+        }
+      }
+      // Trim list
+      while (this.$log.children().length > this.showLogs) {
+        this.$log.children().first().remove();
+      }
+      // Scroll list
+      this.$log[0].scrollTop = this.$log[0].scrollHeight;
     }
   });
 
@@ -2951,7 +3105,7 @@
       Menu.card.menu.add({
         id: info.id,
         icon: info.icon,
-        label: info.name,
+        label: info.label,
         showLabel: false,
         action: function () {
           Menu.card.hide();
@@ -3025,8 +3179,12 @@
         node.x -= 50;
         node.y -= 50;
       });
+
       // Remove selected
       Edit.removeSelected();
+
+      // Update context
+      dataflow.currentGraph.trigger('selectionChanged');
     }
     buttons.children(".cut").click(cut);
     Edit.cut = cut;
@@ -3038,6 +3196,8 @@
       selected.forEach(function(edge){
         edge.remove();
       });
+      // Update context
+      dataflow.currentGraph.trigger('selectionChanged');
     }
     Edit.removeEdge = removeEdge;
 
@@ -3170,6 +3330,35 @@
       contexts: ["edges"]
     });
 
+    dataflow.plugin('search').addCommand({
+      names: ['remove', 'r', 'remove node'],
+      args: ['node'],
+      preview: function (text, callback) {
+        if (!dataflow.currentGraph) {
+          return;
+        }
+        var results = [];
+        dataflow.currentGraph.nodes.each(function (node) {
+          if (node.get('label').toLowerCase().indexOf(text.toLowerCase()) === -1) {
+            return;
+          }
+          results.push({
+            icon: 'remove',
+            label: node.get('label'),
+            description: node.type,
+            item: node
+          });
+        });
+        callback(results);
+      },
+      execute: function (item) {
+        if (!dataflow.currentGraph) {
+          return;
+        }
+        item.remove();
+      }
+    });
+
     Edit.onSearch = function (text, callback) {
       if (!dataflow.currentGraph) {
         return;
@@ -3255,12 +3444,13 @@
 
     };
 
-    var itemTemplate = '<li><a class="button add"><i class="icon-plus"></i></a><span class="name"><%- name %></span><span class="description"><%-description %></span></li>';
+    var itemTemplate = '<li><a class="button add"><i class="icon-<%- icon %>"></i></a><span class="name"><%- name %></span><span class="description"><%-description %></span></li>';
 
     var addLibraryItem = function(name, node) {
-      var $item = $(_.template(itemTemplate, {
+      var $item = $(_.template(itemTemplate)({
         name: name,
-        description: node.description
+        description: node.description,
+        icon: node.icon ? node.icon : 'sign-blank'
       }));
       var addButton = $('.button', $item)
         .attr("title", "click or drag")
@@ -3297,6 +3487,7 @@
 
     dataflow.addPlugin({
       id: "library", 
+      label: "library",
       name: "", 
       menu: $container, 
       icon: "plus",
@@ -3327,6 +3518,31 @@
       callback(results);
     };
 
+    dataflow.plugin('search').addCommand({
+      names: ['add', 'a', 'add component', 'add node'],
+      args: ['component'],
+      preview: function (text, callback) {
+        var results = [];
+        _.each(dataflow.nodes, function (node, name) {
+          if (Library.excluded.indexOf(name) !== -1) {
+            return;
+          }
+          if (name.toLowerCase().indexOf(text.toLowerCase()) === -1) {
+            return;
+          }
+          results.push({
+            icon: 'plus',
+            label: name,
+            description: node.description,
+            item: node
+          });
+        });
+        callback(results);
+      },
+      execute: function (item) {
+        addNode(item).call();
+      }
+    });
   };
 
 }(Dataflow) );
@@ -3351,6 +3567,7 @@
 
     dataflow.addPlugin({
       id: "source", 
+      label: "view source",
       name: "", 
       menu: $form, 
       icon: "code",
@@ -3440,6 +3657,7 @@
 
     dataflow.addPlugin({
       id: "log", 
+      label: "log",
       name: "", 
       menu: $log, 
       icon: "th-list",
@@ -3538,9 +3756,9 @@
  
   var KeyBinding = Dataflow.prototype.plugin("keybinding");
   var Edit = Dataflow.prototype.plugin("edit");
+  var Search = Dataflow.prototype.plugin("search");
 
   KeyBinding.initialize = function(dataflow){
-
     function zoomIn() {
       if (dataflow && dataflow.currentGraph && dataflow.currentGraph.view) {
         dataflow.currentGraph.view.zoomIn();
@@ -3593,6 +3811,10 @@
             Edit.paste();
             break;
           case 90: // z
+            break;
+          case 83: // s
+            event.preventDefault();
+            Search.focus();
             break;
           default:
             break;
@@ -3713,13 +3935,34 @@
   });
 
   Search.initialize = function (dataflow) {
-    var $search = $('<div class="dataflow-plugin-search"><input type="search" placeholder="Search" results="5" /><button><i class="icon-reorder"></i></button></div>');
+    var $search = $('<div class="dataflow-plugin-search"><input type="search" placeholder="Search" results="5" x-webkit-speech /><button><i class="icon-reorder"></i></button></div>');
     var $input = $search.find('input');
     var $button = $search.find('button');
     dataflow.$el.prepend($search);
 
-    $input.on('keyup', function (event) {
+    $input.on('keydown', function (event) {
+      // Ctrl-s again to get out of the search field
+      if ((event.ctrlKey || event.metaKey) && event.which === 83) {
+        event.preventDefault();
+        $input.val('');
+        $input.blur();
+        dataflow.removeCard('searchresults');
+      }
+    });
+
+    $input.on('keyup search webkitspeechchange', function (event) {
+      if (event.keyCode === 13 && Search.results && Search.results.length === 1) {
+        var card = dataflow.shownCards.get('searchresults');
+        if (!card) {
+          return;
+        }
+        $('li', card.el).click();
+        dataflow.removeCard('searchresults');
+        $input.val('');
+        return;
+      }
       if (!$input.val()) {
+        dataflow.removeCard('searchresults');
         return;
       }
       Search.search($input.val(), dataflow);
@@ -3728,9 +3971,88 @@
     $button.on('click', function () {
       dataflow.showPlugin('menu');
     });
+
+    Search.focus = function () {
+      $input.val('');
+      $input.focus();
+    };
   };
 
+  Search.addCommand = function (command) {
+    Search.commands.push(command);
+  };
+
+  Search.handleCommands = function (text, dataflow) {
+    var handled = false;
+    _.each(Search.commands, function (command) {
+      if (handled) {
+        return;
+      }
+      _.each(command.names, function (name) {
+        if (handled) {
+          return;
+        }
+        if (text.indexOf(name) === 0) {
+          // Prepare arguments
+          var argumentString = text.substr(name.length).trim();
+          var args = argumentString.split(' ');
+
+          // Validate arguments
+          if (args.length !== command.args.length) {
+            return;
+          }
+
+          // We found the command
+          handled = true;
+
+          args.push(function (results) {
+            if (results.length === 0) {
+              return;
+            }
+            _.each(results, function (result) {
+              result.action = function () {
+                args.unshift(result.item);
+                command.execute.apply(command, args);
+              };
+            });
+            var Card = Dataflow.prototype.module('card');
+            var resultList = new SearchResults(results, {
+              search: argumentString
+            });
+            var ResultsView = new Backbone.CollectionView({
+              tagName: 'ul',
+              className: 'dataflow-plugin-search-results',
+              collection: resultList,
+              itemView: ResultView
+            });
+            var ResultsCard = new Card.Model({
+              id: 'searchresults',
+              dataflow: dataflow,
+              card: ResultsView,
+              pinned: false
+            });
+            dataflow.addCard(ResultsCard);
+            Search.results = resultList;
+          });
+
+          command.preview.apply(command, args);
+        }
+      });
+    });
+    return handled;
+  };
+
+  Search.commands = [];
+
   Search.search = function (text, dataflow) {
+    dataflow.removeCard('searchresults');
+
+    // Check commands for match
+    if (Search.handleCommands(text, dataflow)) {
+      // Handled by the command, ignore
+      return;
+    }
+
     var Card = Dataflow.prototype.module('card');
     var results = new SearchResults([], {
       search: text
@@ -3742,6 +4064,7 @@
     });
     ResultsView.itemView = ResultView;
     var ResultsCard = new Card.Model({
+      id: 'searchresults',
       dataflow: dataflow,
       card: ResultsView,
       pinned: false
@@ -3875,10 +4198,13 @@
   var Input = Dataflow.prototype.module("input");
   var Output = Dataflow.prototype.module("output");
 
+  DataflowSubgraph.icon = 'sitemap';
+
   DataflowSubgraph.Model = BaseResizable.Model.extend({
     defaults: function(){
       var defaults = BaseResizable.Model.prototype.defaults.call(this);
       defaults.label = "subgraph";
+      defaults.icon = DataflowSubgraph.icon;
       defaults.type = "dataflow-subgraph";
       defaults.graph = {
         nodes:[

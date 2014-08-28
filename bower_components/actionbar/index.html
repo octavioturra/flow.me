@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <title>ActionBar.js for Backbone</title>
+  <link rel="stylesheet" href="./vendor/css/bootstrap.min.css">
+  <link rel="stylesheet" href="./vendor/css/bootstrap-responsive.min.css">
+  <link rel="stylesheet" href="./vendor/css/font-awesome.min.css">
+  <link rel="stylesheet" href="./css/actionbar.css">
+  <script src="./vendor/js/jquery.js"></script>
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-75936-2']);
+    _gaq.push(['_trackPageview']);
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>ActionBar.js for Backbone</h1>
+
+    <p>
+    This project implements the necessary <a href="http://backbonejs.org">Backbone.js</a> models and views for using <a href="http://developer.android.com/design/patterns/actionbar.html">Android-style Action Bars</a> in your web applications. The system is designed to play well with Bootstrap templates, but you can also write the CSS yourself. Classes used are the same as what Bootstrap's navbars use.
+    </p>
+
+    <p>
+    The source code for ActionBar.js is <a href="https://github.com/bergie/actionbar">on <i class="icon-github"></i> GitHub</a>.
+    </p>
+
+    <h2>Demo &mdash; ActionBar in Action</h2>
+
+    <p class="alert alert-info"><small>Click on the items to see the Context Bar. Any number of selected items can be deleted, but only a single item may be copied at a time (arbitrary constraint to show off disabled action items). New items can be added by clicking the <em>+</em> button of the Action Bar, or by copying existing ones in the Context Bar</small></p>
+
+    <ul class="nav nav-tabs">
+      <li class="active"><a data-style="wide"><i class="icon-desktop"></i> Desktop</a></li>
+      <li><a data-style="narrow"><i class="icon-mobile-phone"></i> Phone</a></li>
+    </ul>
+    <iframe src="./example/index.html" class="wide"></iframe>
+    <p><a href="https://github.com/bergie/actionbar/tree/gh-pages/example" class="btn">Demo source code</a></p>
+
+    <h2>Dependencies</h2>
+
+    <ul>
+      <li>jQuery</li>
+      <li>Backbone.js</li>
+      <li>Font Awesome or some other icon font</li>
+      <li>Optionally, Bootstrap</li>
+    </ul>
+
+    <h2>Basic usage</h2>
+
+    <p>First you'll need to prepare an action bar instance with a <em>view control</em> and a set of <em>actions</em>:</p>
+
+    <pre>
+var myBar = new ActionBar({
+  control: {
+    icon: 'gift',
+    label: 'Hello World'
+  },
+  actions: [
+    {
+      id: 'copy',
+      icon: 'copy',
+      label: 'Copy'
+    },
+    {
+      id: 'paste',
+      icon: 'paste',
+      label: 'Paste
+    }
+  ]
+});</pre>
+
+    <p>
+    Then simply render it:
+    </p>
+
+    <pre>
+myBar.show();</pre>
+
+    <p>If you need more control of where in your DOM the action bar will be placed, then use the
+    <code>render</code> function instead of <code>show</code>. The render function returns a DOM element
+    containing the toolbar.
+
+    <h3>Modifying actions</h3>
+
+    <p>After instantiation, the actions are regular Backbone collections and models, with views
+    listening to their changes. This means you can easily change them at any point:
+    </p>
+
+    <pre>
+// Disable pasting
+myBar.get('actions').get('paste').set('disabled', true);
+
+// Add new action
+myBar.get('actions').add({
+  id: 'remove',
+  icon: 'trash',
+  label: 'Remove'
+});</pre>
+  </div>
+  <footer class="footer">
+    <div class="container">
+      <p>By <a href="http://bergie.iki.fi">Henri Bergius</a>. MIT license.</p>
+    </div>
+  </footer>
+  <script>
+    $(document).ready(function () {
+      $('.nav-tabs li a').click(function(event) {
+        event.preventDefault();
+        var className = $(this).attr('data-style');
+        if (className === 'narrow') {
+          $('iframe').removeClass('wide').addClass('narrow');
+        }
+        if (className === 'wide') {
+          $('iframe').removeClass('narrow').addClass('wide');
+        }
+        $('.nav-tabs li').removeClass('active');
+        $(this).parent().addClass('active');
+      });
+    });
+  </script>
+</body>
