@@ -27,6 +27,7 @@
     }
   ],
   "dependencies": {
+    "grunt-gh-pages": "^0.9.1"
   },
   "keywords": [],
   "devDependencies": {

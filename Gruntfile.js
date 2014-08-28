@@ -111,7 +111,17 @@
             ]
           }
         }
-      }
+      },
+			'gh-pages': {
+            options: {
+                /*clone: 'bower_components/paper-canvas'*/
+            },
+            src: [
+                'bower_components/**/*',
+                '!bower_components/paper-canvas/**/*',
+                'build/*', 'index.html'
+            ]
+        },
     });
 
     this.loadNpmTasks('grunt-contrib-concat');
@@ -121,10 +131,13 @@
     this.loadNpmTasks('grunt-contrib-watch');
     this.loadNpmTasks('grunt-contrib-cssmin');
 
+		this.loadNpmTasks('grunt-gh-pages');
+
     this.registerTask('dev', ['connect', 'watch']);
     this.registerTask('build', ['concat:dist', 'uglify:dist', 'cssmin:dist']);
     this.registerTask('test', ['jshint']);
     this.registerTask('default', ['test', 'build']);
+		this.registerTask('deploy', ['build', 'gh-pages']);
   };
 
 }).call(this);
