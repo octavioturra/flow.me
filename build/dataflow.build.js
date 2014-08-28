@@ -1,4 +1,4 @@
-/*! flow.me - v0.0.8 - 2014-08-28 (6:54:40 PM GMT-0300)
+/*! flow.me - v0.0.8 - 2014-08-28 (7:21:09 PM GMT-0300)
 * Copyright (c) 2014 Forrest Oliphant; Licensed MIT, GPL */
 // Thanks bobnice http://stackoverflow.com/a/1583281/592125
 
@@ -929,7 +929,7 @@ CircularBuffer.IndexError= {};
       '</div>'+
     '</div>'+
     '<div class="dataflow-graph-controls">'+
-      '<button class="dataflow-graph-gotoparent"><i class="icon-chevron-left"></i> back to parent</button>'+
+      '<button class="dataflow-graph-gotoparent"><i class="fa fa-chevron-left"></i> back to parent</button>'+
     '</div>';
 
   Graph.View = Backbone.View.extend({
@@ -1298,7 +1298,7 @@ CircularBuffer.IndexError= {};
 
   var headerTemplate =
     '<h1 class="dataflow-node-title" title="<%- label %>: <%- type %>">'+
-    '<% if (icon) { %><i class="icon-<%- icon %>"></i> <% } %>'+
+    '<% if (icon) { %><i class="fa fa-<%- icon %>"></i> <% } %>'+
     '<%- label %></h1>';
 
   var template = 
@@ -2899,7 +2899,7 @@ CircularBuffer.IndexError= {};
 
   var MenuItemView = Backbone.View.extend({
     tagName: 'li',
-    template: '<button title="<%- label %>"><i class="icon-<%- icon %>"></i><span class="name"><%- label %></span></button>',
+    template: '<button title="<%- label %>"><i class="fa fa-<%- icon %>"></i><span class="name"><%- label %></span></button>',
     events: {
       'click': 'clicked'
     },
@@ -3444,7 +3444,7 @@ CircularBuffer.IndexError= {};
 
     };
 
-    var itemTemplate = '<li><a class="button add"><i class="icon-<%- icon %>"></i></a><span class="name"><%- name %></span><span class="description"><%-description %></span></li>';
+    var itemTemplate = '<li><a class="button add"><i class="fa fa-<%- icon %>"></i></a><span class="name"><%- name %></span><span class="description"><%-description %></span></li>';
 
     var addLibraryItem = function(name, node) {
       var $item = $(_.template(itemTemplate)({
@@ -3919,7 +3919,7 @@ CircularBuffer.IndexError= {};
 
   var ResultView = Backbone.View.extend({
     tagName: 'li',
-    template: '<i class="icon-<%- icon %>"></i><span class="name"><%- label %></span><span class="description"><%- description %></span>',
+    template: '<i class="fa fa-<%- icon %>"></i><span class="name"><%- label %></span><span class="description"><%- description %></span>',
     events: {
       'click': 'clicked'
     },
@@ -3935,7 +3935,7 @@ CircularBuffer.IndexError= {};
   });
 
   Search.initialize = function (dataflow) {
-    var $search = $('<div class="dataflow-plugin-search"><input type="search" placeholder="Search" results="5" x-webkit-speech /><button><i class="icon-reorder"></i></button></div>');
+    var $search = $('<div class="dataflow-plugin-search"><input type="search" placeholder="Search" results="5" x-webkit-speech /><button><i class="fa fa-reorder"></i></button></div>');
     var $input = $search.find('input');
     var $button = $search.find('button');
     dataflow.$el.prepend($search);

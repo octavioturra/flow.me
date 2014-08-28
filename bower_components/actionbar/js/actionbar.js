@@ -175,10 +175,10 @@
       var label = this.model.get('control').get('label');
       this.$control.empty();
       if (up) {
-        this.$control.append(Backbone.$('<i class="control-up icon-chevron-left"></i><span class="control-up">&nbsp;</span>'));
+        this.$control.append(Backbone.$('<i class="control-up fa fa-chevron-left"></i><span class="control-up">&nbsp;</span>'));
       }
       if (icon) {
-        this.$control.append(Backbone.$('<i class="control-icon icon-' + icon + '"></i>'));
+        this.$control.append(Backbone.$('<i class="control-icon fa fa-' + icon + '"></i>'));
       }
       if (label) {
         this.$control.append('<span class="control-label">&nbsp;' + label + '</span>');
@@ -252,7 +252,7 @@
       var label = this.model.get('control').get('label');
       this.$control.empty();
       if (icon) {
-        this.$control.append(Backbone.$('<i class="control-icon icon-' + icon + '"></i>'));
+        this.$control.append(Backbone.$('<i class="control-icon fa fa-' + icon + '"></i>'));
       }
       if (label) {
         this.$control.append('<span class="control-label"> ' + label + '</span>');
@@ -339,7 +339,7 @@
     render: function () {
       this.$el.html(this.template);
       var $btn = Backbone.$('a', this.$el);
-      $btn.append(Backbone.$('<i class="icon-' + this.model.get('icon') + '"></i>'));
+      $btn.append(Backbone.$('<i class="fa fa-' + this.model.get('icon') + '"></i>'));
 
       if (this.model.get('disabled')) {
         this.$el.addClass('disabled');
